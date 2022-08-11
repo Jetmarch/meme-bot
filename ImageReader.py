@@ -14,6 +14,4 @@ class ImageReader:
         im = im.convert('1')
         im.save('temp2.jpg')
         text = pytesseract.image_to_string(Image.open('temp2.jpg'), lang=lang)
-
-        language = pytesseract.get_languages()
         return text
