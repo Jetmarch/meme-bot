@@ -27,7 +27,6 @@ class VkBot:
     def write_msg(self, chat_id, message):
         random_id = int(round(time.time() * 1000))
         self.vk.method('messages.send', {'chat_id': chat_id, 'message': message, 'random_id':random_id})
-        print(message)
 
     def listen_longpoll(self):
         for event in self.longpoll.listen():
@@ -36,7 +35,7 @@ class VkBot:
                 if event.type == VkBotEventType.MESSAGE_NEW:
                     if event.from_chat:
 
-                        
+
                         '''
                         if event.message.text == '!rus' and event.message.from_id == self.bot_admin_id:
                             self.english_conf_id = event.chat_id
