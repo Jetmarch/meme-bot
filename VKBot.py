@@ -4,6 +4,7 @@ from ImageLoader import ImageLoader
 from ImageReader import ImageReader
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
+from logger import Log, LogType
 import detectlanguage
 
 class VkBot:
@@ -22,19 +23,23 @@ class VkBot:
         self.vk = vk_api.VkApi(token=self.token)
         self.longpoll = VkBotLongPoll(self.vk, '215306309')
         self.imageReader = ImageReader()
-        print('Bot launched')
+        Log.log(LogType.OK, "Бот запущен")
 
-    def write_msg(self, chat_id, message):
+    def write_msg(self, event, message):
         random_id = int(round(time.time() * 1000))
-        self.vk.method('messages.send', {'chat_id': chat_id, 'message': message, 'random_id':random_id})
+        self.vk.method('messages.send', {'chat_id': event.chat_id, 'message': message, 'random_id':random_id})
+        Log.log(LogType.INFO, "Ответ на '", event.message.text, "' - '", message, "' в чат ", event.chat_id)
 
     def listen_longpoll(self):
         for event in self.longpoll.listen():
             try:
                 #print('event from: ' + str(event.chat_id))
+                
                 if event.type == VkBotEventType.MESSAGE_NEW:
                     if event.from_chat:
-
+                        Log.log(LogType.INFO, "Сообщение '", event.message.text, "' из беседы: ", event.chat_id)
+                        if event.message.text == "Тест":
+                            self.write_msg(event, "Тест!")
 
                         '''
                         if event.message.text == '!rus' and event.message.from_id == self.bot_admin_id:
@@ -63,6 +68,6 @@ class VkBot:
                                 print(str(e))
                         '''
             except Exception as e:
-                self.write_msg(event.chat_id, 'Сломалься.')
-                print(str(e))
+                self.write_msg(event, 'Что-то пошло не так...')
+                Log.log(LogType.CRITICAL, "Ошибка в основном цикле - ", str(e))
 
