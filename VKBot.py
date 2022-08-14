@@ -32,10 +32,12 @@ class VkBot:
     def listen_longpoll(self):
         for event in self.longpoll.listen():
             try:
-                print('event from: ' + str(event.chat_id))
+                #print('event from: ' + str(event.chat_id))
                 if event.type == VkBotEventType.MESSAGE_NEW:
                     if event.from_chat:
 
+                        
+                        '''
                         if event.message.text == '!rus' and event.message.from_id == self.bot_admin_id:
                             self.english_conf_id = event.chat_id
                             self.write_msg(event.chat_id, 'Запомнил')
@@ -60,10 +62,8 @@ class VkBot:
                             except Exception as e:
                                 self.write_msg(event.chat_id, 'Не нашёл на пикче слов')
                                 print(str(e))
+                        '''
             except Exception as e:
                 self.write_msg(event.chat_id, 'Сломалься.')
                 print(str(e))
 
-bot = VkBot()
-
-bot.listen_longpoll()
