@@ -1,25 +1,32 @@
 import threading
-
+from logger import Log, LogType
+import random
 
 class Pepe:
-    chat_id = 0
+    bot_name = ""
+    chat_id = 1
     is_alive = True
     is_hungry = False
     is_happy = True
 
+    current_level = 1
     current_exp = 0
     next_level_exp = 0
 
     # Каждый час
-    time_to_idle = 1 #60 * 60
+    time_to_idle = 60 * 60
 
-    def __init__(self) -> None:
+    def __init__(self, msg_func) -> None:
         self.happiness = Stat(10)
         self.health = Stat(10)
+        self.next_level_exp = max(int((self.current_exp * self.current_exp) * 0.65), 65)
         self.is_alive = True
         self._set_timer()
+        # FIX_ME: Пересмотреть возможность взаимодействия с vk_api
+        self.msg_func = msg_func
+    
 
-    def on_idle(self) -> None:
+    def on_idle(self) -> str:
         ''' 
             Событие-реакция бота на отсутствие сообщений в течение определённого времени в беседе.
             Снижает уровень здоровья и оповещает об этом всех участников беседы
@@ -27,30 +34,29 @@ class Pepe:
 
         if not self.is_alive:
             return
-        
+        self._restart_timer()
         self.health.change(-1)
-        print(self.health.current)
+
+        Log.log(LogType.DEBUG, 'Текущее здоровье: ', self.health.current)
 
         if self.health.current > (int(self.health.max / 2)):
-            print('Пепе скучает')
-            self._restart_timer()
+            return self.msg_func(self.chat_id, 'Пепе скучает')
 
         if self.health.current <= (int(self.health.max / 2)) and self.health.current > 0:
-            print('Пепе помирает со скуки')
-            self._restart_timer()
-        
+            return self.msg_func(self.chat_id, 'Пепе помирает со скуки')
+
         if self.health.current <= 0:
-            self.die()
+            return self.msg_func(self.chat_id, self.die())
        
 
-    def on_pat(self, event) -> None:
+    def on_pat(self, event) -> str:
         ''' 
             Событие-реакция бота на поглаживание через команду в беседе
             Обновляет таймер
         '''
-
-        print('Пепе довольно нежится от поглаживаний')
+        #print('Пепе довольно нежится от поглаживаний')
         self._restart_timer()
+        self.msg_func(event.chat_id, 'Пепе довольно нежится от поглаживаний')
 
     '''
         TODO: Отдельная реакция на следующий список разных сообщений
@@ -62,15 +68,26 @@ class Pepe:
         6. Пересланное сообщение с видео из ленты
 
     '''
-    def on_message(self, event) -> None:
+    def on_message(self, event) -> str:
         ''' 
             Событие-реакция бота на новое сообщение в беседе.
             Обновляет таймер, лечит Пепе (TODO: продумать механику лечения)
             Так же даёт ему немного опыта в зависимости от типа сообщения
         '''
-
-        print('Пепе довольно облизывается, поедая мем из поста сверху')
+        self.health.change(1)
         self._restart_timer()
+        self.current_exp += 1
+        Log.log(LogType.DEBUG, "Активность! Пепе доволен")
+
+        
+        if self.current_exp >= self.next_level_exp:
+            self.on_level_up(event)
+        
+        # С небольшим шансом бот будет как-то комментировать активность в беседе
+        if random.randint(0, 9) == 1:
+            return self.msg_func(self.chat_id, 'Пепе довольно облизывается, видя активность в беседе')
+        else:
+            return ''
 
     def on_level_up(self, event) -> None:
         ''' 
@@ -82,7 +99,7 @@ class Pepe:
         #Вычисление количества опыта для следующего уровня происходят по формуле (x * x) * 0.65
         pass
     
-    def get_bot_info(self) -> None:
+    def get_bot_info(self, event) -> str:
         '''
             Возвращает информацию о Пепе:
             * Текущий уровень, количество текущего опыта / количество опыта до следующего уровня
@@ -90,15 +107,18 @@ class Pepe:
             * Картинку его статуса (яйцо, маленький Пепе, Пепе-подросток, Пепе-взрослый, Пепе-мудрец)
             * TODO: Продумать несколько промежуточных статусов
         '''
+        return self.msg_func(event.chat_id, f'Текущее здоровье: {self.health.current}/{self.health.max} \n' \
+                + f'Текущий уровень: {self.current_level} \n' \
+                + f'Текущий опыт: {self.current_exp}/{self.next_level_exp}')
 
-    def die(self) -> None:
+    def die(self) -> str:
         ''' 
             Событие-реакция бота на снижение здоровья до нуля.
             Останавливает таймер и отключает бота
         '''
-
-        print('Пепе издаёт последний вздох, прежде чем отправиться к праотцам')
+        Log.log(LogType.WARNING, f'Пепе из беседы {self.chat_id} умер!')
         self._stop_timer()
+        return self.msg_func(self.chat_id, 'Пепе издаёт последний вздох, прежде чем отправиться к праотцам')
     
     def _set_timer(self) -> None:
         self.idle_timer = threading.Timer(self.time_to_idle, self.on_idle)
@@ -122,14 +142,6 @@ class Pepe:
 
         pass
 
-    
-    
-    # Каждый час бездействия в беседе здоровье Пепе снижается на один пункт
-    # Количество здоровья зависит от уровня Пепе
-
-    # Отложить снижение здоровья можно погладив его
-    # 
-
 class Stat:
     def __init__(self, max_amount, current_amount = 0) -> None:
         self.max = max_amount
@@ -139,12 +151,10 @@ class Stat:
             self.current = current_amount
 
     def change(self, value) -> None:
+        if self.current == self.max and value > 0:
+            return
+        
         self.current += value
 
     def restore(self) -> None:
         self.current = self.max
-
-p = Pepe()
-event = 'str'
-timer = threading.Timer(5, p.on_pat, [event])
-timer.start()
