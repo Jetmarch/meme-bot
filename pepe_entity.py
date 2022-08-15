@@ -3,11 +3,9 @@ from logger import Log, LogType
 import random
 
 class Pepe:
+    bot_id = 0
     bot_name = ""
     chat_id = 1
-    is_alive = True
-    is_hungry = False
-    is_happy = True
 
     current_level = 1
     current_exp = 0
@@ -16,15 +14,22 @@ class Pepe:
     # Каждый час
     time_to_idle = 60 * 60
 
-    def __init__(self, msg_func) -> None:
+    def __init__(self) -> None:
         self.happiness = Stat(10)
         self.health = Stat(10)
         self.next_level_exp = max(int((self.current_exp * self.current_exp) * 0.65), 65)
         self.is_alive = True
         self._set_timer()
+    
+    def set_msg_func(self, msg_func):
         # FIX_ME: Пересмотреть возможность взаимодействия с vk_api
         self.msg_func = msg_func
     
+    def _generate_name(self):
+        '''
+            Присваивает случайное имя из списка
+        '''
+        self.bot_name = '' #TODO: Класс, хранящий в себе все реплики, названия и имена
 
     def on_idle(self) -> str:
         ''' 
@@ -74,6 +79,7 @@ class Pepe:
             Обновляет таймер, лечит Пепе (TODO: продумать механику лечения)
             Так же даёт ему немного опыта в зависимости от типа сообщения
         '''
+
         self.health.change(1)
         self._restart_timer()
         self.current_exp += 1
@@ -107,7 +113,9 @@ class Pepe:
             * Картинку его статуса (яйцо, маленький Пепе, Пепе-подросток, Пепе-взрослый, Пепе-мудрец)
             * TODO: Продумать несколько промежуточных статусов
         '''
-        return self.msg_func(event.chat_id, f'Текущее здоровье: {self.health.current}/{self.health.max} \n' \
+        return self.msg_func(event.chat_id, 
+                  f'Имя: {self.bot_name}\n' \
+                + f'Текущее здоровье: {self.health.current}/{self.health.max} \n' \
                 + f'Текущий уровень: {self.current_level} \n' \
                 + f'Текущий опыт: {self.current_exp}/{self.next_level_exp}')
 
@@ -117,6 +125,7 @@ class Pepe:
             Останавливает таймер и отключает бота
         '''
         Log.log(LogType.WARNING, f'Пепе из беседы {self.chat_id} умер!')
+        self.is_alive = False
         self._stop_timer()
         return self.msg_func(self.chat_id, 'Пепе издаёт последний вздох, прежде чем отправиться к праотцам')
     
@@ -139,8 +148,12 @@ class Pepe:
              Возрождение бота. Восстанавливает значение здоровья до максимального,
              но обнуляет весь набранный опыт и уровни
         '''
-
-        pass
+        self.is_alive = True
+        self.health.restore()
+        self.current_exp = 0
+        self.current_level = 0
+        self.next_level_exp = 65
+        
 
 class Stat:
     def __init__(self, max_amount, current_amount = 0) -> None:
