@@ -40,8 +40,9 @@ class DBWrap:
 
     def update_pepe(self, pepe: Pepe):
         cur = self.con.cursor()
-        cur.execute("UPDATE t_pepe_entity SET is_alive = ?, current_level = ?, current_exp = ?, current_health = ?, max_health = ?", 
-            [pepe.is_alive, pepe.current_level, pepe.current_exp, pepe.health.current, pepe.health.max])
+        cur.execute("UPDATE t_pepe_entity SET is_alive = ?, current_level = ?, current_exp = ?, current_health = ?, max_health = ? \
+            WHERE id = ?", 
+            [pepe.is_alive, pepe.current_level, pepe.current_exp, pepe.health.current, pepe.health.max, pepe.bot_id])
         self.con.commit()
         
 
