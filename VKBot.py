@@ -64,6 +64,8 @@ class VkBot:
                                 pepe.on_pat(event)
                             elif event.message.text == self.bot_prefix + 'Пепе статы' and pepe is not None:
                                 pepe.get_bot_info(event)
+                            elif event.message.text == self.bot_prefix + 'Ап' and pepe is not None:
+                                pepe.on_level_up(event)
                             elif pepe is not None:
                                 pepe.on_message(event)
 
