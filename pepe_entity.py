@@ -103,7 +103,10 @@ class Pepe:
             Так же устанавливает следующие границы для повышения уровня
         '''
         #Вычисление количества опыта для следующего уровня происходят по формуле (x * x) * 0.65
-        pass
+        self.next_level_exp = (self.current_exp * self.current_exp) * 0.65
+        self.current_exp = 0
+        self.current_level += 1
+        self.msg_func(self.chat_id, 'Пепе стал лучше!')
     
     def get_bot_info(self, event) -> str:
         '''

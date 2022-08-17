@@ -1,13 +1,9 @@
 import time
 import vk_api
-from ImageLoader import ImageLoader
-from ImageReader import ImageReader
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
-from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from db_wrapper import DBWrap
 from logger import Log, LogType
 from pepe_entity import Pepe
-#import detectlanguage
 
 class VkBot:
     token = ''
