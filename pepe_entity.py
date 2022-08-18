@@ -13,6 +13,11 @@ class Pepe:
     current_exp = 0
     next_level_exp = 0
 
+    # Пепе будет укладываться спать в 11 вечера и просыпаться в 8 утра
+    # Во время сна не будут обрабатываться сообщения, адресованные Пепе
+    # А так же не будет происходить снижение здоровья за бездействие
+    is_sleeping = False
+
     # Каждый час
     time_to_idle = 60 * 60
 
@@ -140,10 +145,11 @@ class Pepe:
                 + f'Текущее здоровье: {self.health.current}/{self.health.max} \n' \
                 + f'Текущий уровень: {self.current_level} \n' \
                 + f'Текущий опыт: {self.current_exp}/{self.next_level_exp}\n' \
-                + f'Текущее развитие: {self._get_state_to_str()}'
+                + f'Текущее развитие: {self._get_str_state()}'\
+                + f'Текущее состояние: {self._get_str_alive_status()}\n'
                 )
     
-    def _get_state_to_str(self):
+    def _get_str_state(self):
         if self.state == PepeState.Egg:
             return 'Яйцо'
         if self.state == PepeState.Young:
@@ -151,7 +157,13 @@ class Pepe:
         if self.state == PepeState.Adult:
             return 'Взрослый Пепега'
         if self.state == PepeState.Ancient:
-            return 'Мудрый Пепега'   
+            return 'Мудрый Пепега'  
+
+    def _get_str_alive_status(self):
+        if self.is_alive:
+            return "Жив"
+        else:
+            return "Мёртв"
 
     def die(self) -> str:
         ''' 

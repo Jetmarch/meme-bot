@@ -1,9 +1,7 @@
-import time
-import vk_api
+import time, vk_api, requests
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 from db_wrapper import DBWrap
 from logger import Log, LogType
-from pepe_entity import Pepe
 
 class VkBot:
     token = ''
@@ -16,6 +14,9 @@ class VkBot:
     pepe_list = []
 
     def __init__(self) -> None:
+        self._launch_bot()
+    
+    def _launch_bot(self):
         f = open('token.txt', 'r', encoding="utf-8")
         self.token = f.readline()
         f.close()
@@ -23,7 +24,7 @@ class VkBot:
         #detectlanguage.configuration.api_key = f.readline()
         #f.close()
         self.vk = vk_api.VkApi(token=self.token)
-        self.longpoll = VkBotLongPoll(self.vk, self.bot_group_id)
+        self.longpoll = VkBotLongPoll(self.vk, self.bot_group_id, 5)
 
         self.db_wrap = DBWrap()
         self.pepe_list = self.db_wrap.get_all_pepe()
@@ -49,32 +50,35 @@ class VkBot:
 
     #TODO: Рассылка описания изменений по беседам, либо команда !хотфикс
     def listen_longpoll(self):
-        for event in self.longpoll.listen():
+        while True:
             try:
-                if event.type == VkBotEventType.MESSAGE_NEW:
-                    if event.from_chat:
-                        
-                        
+                for event in self.longpoll.listen():
+                    try:
+                        if event.type == VkBotEventType.MESSAGE_NEW:
+                            if event.from_chat:
+                                pepe = self._get_pepe_by_chat_id(event.chat_id)
+                                Log.log(LogType.DEBUG, 'Пепе для беседы ', event.chat_id, ' ', pepe.bot_name, ' id: ', pepe.bot_id)
 
-                        pepe = self._get_pepe_by_chat_id(event.chat_id)
-                        Log.log(LogType.DEBUG, 'Пепе для беседы ', event.chat_id, ' ', pepe.bot_name, ' id: ', pepe.bot_id)
+                                #TODO: Перенести всю логику обработки ответов в класс Pepe
+                                if pepe.is_alive:                       
+                                    if event.message.text == self.bot_prefix + 'Погладил Пепе' and pepe is not None:
+                                        pepe.on_pat(event)
+                                    elif event.message.text == self.bot_prefix + 'Пепе статы' and pepe is not None:
+                                        pepe.get_bot_info(event)
+                                    elif event.message.text == self.bot_prefix + 'Ап' and pepe is not None and event.from_user == self.bot_admin_id:
+                                        pepe.on_level_up(event)
+                                    elif pepe is not None:
+                                        pepe.on_message(event)
 
-                        if pepe.is_alive:                       
-                            if event.message.text == self.bot_prefix + 'Погладил Пепе' and pepe is not None:
-                                pepe.on_pat(event)
-                            elif event.message.text == self.bot_prefix + 'Пепе статы' and pepe is not None:
-                                pepe.get_bot_info(event)
-                            elif event.message.text == self.bot_prefix + 'Ап' and pepe is not None:
-                                pepe.on_level_up(event)
-                            elif pepe is not None:
-                                pepe.on_message(event)
+                                    self.db_wrap.update_pepe(pepe)
+                                    
+                                if event.message.text == self.bot_prefix + 'Завести Пепе!':
+                                    self.write_msg(event.chat_id, 'Пока нет возможности завести Пепе, но такая возможность скоро будет доступна')
+                    except Exception as e:
+                        self.write_msg(event.chat_id, 'Что-то пошло не так...')
+                        Log.log(LogType.CRITICAL, "Ошибка в основном цикле обработки событий - ", str(e))
 
-                            self.db_wrap.update_pepe(pepe)
-                            
-                        if event.message.text == self.bot_prefix + 'Завести Пепе!':
-                            self.write_msg(event.chat_id, 'Пока нет возможности завести Пепе, но такая возможность скоро будет доступна')
-
-            except Exception as e:
-                self.write_msg(event.chat_id, 'Что-то пошло не так...')
-                Log.log(LogType.CRITICAL, "Ошибка в основном цикле - ", str(e))
+            except requests.exceptions.RequestException:
+                    Log.log(LogType.CRITICAL, "Ошибка сети. Переподключение...")
+                    time.sleep(5)
 
