@@ -1,5 +1,6 @@
-from VKBot import VkBot
+from vk_wrapper import vk_wrapper
 
-bot = VkBot()
+print("hello")
+#bot = vk_wrapper()
 
-bot.listen_longpoll()
+#bot.listen_longpoll()

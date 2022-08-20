@@ -3,7 +3,7 @@ from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 from db_wrapper import DBWrap
 from logger import Log, LogType
 
-class VkBot:
+class vk_wrapper:
     token = ''
     english_conf_id = 0
     russian_conf_id = 0
@@ -65,8 +65,14 @@ class VkBot:
                                         pepe.on_pat(event)
                                     elif event.message.text.lower().strip(' ') == self.bot_prefix + 'статы' and pepe is not None:
                                         pepe.get_bot_info(event)
-                                    elif event.message.text.lower().strip(' ') == self.bot_prefix + 'ап' and pepe is not None and event.from_user == self.bot_admin_id:
+                                    elif event.message.text.lower().strip(' ') == self.bot_prefix + 'ап' and pepe is not None:
                                         pepe.on_level_up(event)
+                                    elif event.message.text.lower().strip(' ') == 'умри' and pepe is not None:
+                                        pepe._set_die()
+                                    elif event.message.text.lower().strip(' ') == 'спи' and pepe is not None:
+                                        pepe._set_sleep()
+                                    elif event.message.text.lower().strip(' ') == 'живи' and pepe is not None:
+                                        pepe._set_idle()
                                     elif pepe is not None:
                                         pepe.on_message(event)
 

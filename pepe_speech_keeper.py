@@ -7,8 +7,6 @@ class PepeSpeech:
     def on_idle():
         pass
 
-    def on_
-
     def on_pat():
         pass
 
