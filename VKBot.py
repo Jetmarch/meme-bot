@@ -61,18 +61,18 @@ class VkBot:
 
                                 #TODO: Перенести всю логику обработки ответов в класс Pepe
                                 if pepe.is_alive:                       
-                                    if event.message.text == self.bot_prefix + 'Погладил Пепе' and pepe is not None:
+                                    if event.message.text.lower().strip(' ') == self.bot_prefix + 'погладил' and pepe is not None:
                                         pepe.on_pat(event)
-                                    elif event.message.text == self.bot_prefix + 'Пепе статы' and pepe is not None:
+                                    elif event.message.text.lower().strip(' ') == self.bot_prefix + 'статы' and pepe is not None:
                                         pepe.get_bot_info(event)
-                                    elif event.message.text == self.bot_prefix + 'Ап' and pepe is not None and event.from_user == self.bot_admin_id:
+                                    elif event.message.text.lower().strip(' ') == self.bot_prefix + 'ап' and pepe is not None and event.from_user == self.bot_admin_id:
                                         pepe.on_level_up(event)
                                     elif pepe is not None:
                                         pepe.on_message(event)
 
                                     self.db_wrap.update_pepe(pepe)
                                     
-                                if event.message.text == self.bot_prefix + 'Завести Пепе!':
+                                if event.message.text.lower().strip(' ') == self.bot_prefix + 'завести':
                                     self.write_msg(event.chat_id, 'Пока нет возможности завести Пепе, но такая возможность скоро будет доступна')
                     except Exception as e:
                         self.write_msg(event.chat_id, 'Что-то пошло не так...')

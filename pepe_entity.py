@@ -1,7 +1,8 @@
 import threading, random, math
 from logger import Log, LogType
-from pepe_state import PepeState
+from pepe_progress import PepeProgress
 from pepe_stat import Stat
+from datetime import datetime, timedelta
 
 
 class Pepe:
@@ -17,6 +18,8 @@ class Pepe:
     # Во время сна не будут обрабатываться сообщения, адресованные Пепе
     # А так же не будет происходить снижение здоровья за бездействие
     is_sleeping = False
+    go_to_sleep_time = 23
+    wake_up_time = 7
 
     # Каждый час
     time_to_idle = 60 * 60
@@ -27,26 +30,29 @@ class Pepe:
         self.next_level_exp = max(int((self.current_exp * self.current_exp) * 0.65), 65)
         self.is_alive = True
         self._set_timer()
-        self.state = PepeState.Egg
+        self.progress = PepeProgress.Egg
+
+        now = datetime.now()
+
+        if now.hour >= self.go_to_sleep_time or now.hour <= self.wake_up_time:
+            self.go_to_sleep()
+        else:
+            self.wake_up()
     
     def set_msg_func(self, msg_func):
         # FIX_ME: Пересмотреть возможность взаимодействия с vk_api
         self.msg_func = msg_func
     
-    def _generate_name(self):
-        '''
-            Присваивает случайное имя из списка
-        '''
-        self.bot_name = '' #TODO: Класс, хранящий в себе все реплики, названия и имена
-
+    
     def on_idle(self) -> str:
         ''' 
             Событие-реакция бота на отсутствие сообщений в течение определённого времени в беседе.
             Снижает уровень здоровья и оповещает об этом всех участников беседы
         '''
 
-        if not self.is_alive:
+        if not self.is_alive or self.is_sleeping:
             return
+        
         self._restart_timer()
         self.health.change(-1)
 
@@ -71,21 +77,22 @@ class Pepe:
         self._restart_timer()
         self.msg_func(event.chat_id, f'{self.bot_name} довольно нежится от поглаживаний')
 
-    '''
-        TODO: Отдельная реакция на следующий список разных сообщений
-        1. Простое текстовое сообщение
-        2. Простое сообщение с картинкой
-        3. Пересланное текстовое сообщение из ленты
-        4. Пересланное сообщение с картинкой из ленты
-        5. Пересланное сообщение с несколькими картинками из ленты
-        6. Пересланное сообщение с видео из ленты
-
-    '''
+    
     def on_message(self, event) -> str:
         ''' 
             Событие-реакция бота на новое сообщение в беседе.
             Обновляет таймер, лечит Пепе (TODO: продумать механику лечения)
             Так же даёт ему немного опыта в зависимости от типа сообщения
+        '''
+        '''
+            TODO: Отдельная реакция на следующий список разных сообщений
+            1. Простое текстовое сообщение
+            2. Простое сообщение с картинкой
+            3. Пересланное текстовое сообщение из ленты
+            4. Пересланное сообщение с картинкой из ленты
+            5. Пересланное сообщение с несколькими картинками из ленты
+            6. Пересланное сообщение с видео из ленты
+
         '''
 
         self.health.change(1)
@@ -116,22 +123,21 @@ class Pepe:
         self.current_level += 1
 
         #Границы поднятия на новый статус установлены в значениях PepeState
-        if self.current_level == PepeState.Young.value:
-            self.state = PepeState.Young
+        if self.current_level == PepeProgress.Young.value:
+            self.progress = PepeProgress.Young
             self.msg_func(self.chat_id, f'{self.bot_name} впервые увидел этот мир, вылупившись из яйца!')
         
-        elif self.current_level == PepeState.Adult.value:
-            self.state = PepeState.Adult
+        elif self.current_level == PepeProgress.Adult.value:
+            self.progress = PepeProgress.Adult
             self.msg_func(self.chat_id, f'Похоже, что {self.bot_name} не на шутку повзрослел!')
 
-        elif self.current_level == PepeState.Ancient.value:
-            self.state = PepeState.Ancient
+        elif self.current_level == PepeProgress.Ancient.value:
+            self.progress = PepeProgress.Ancient
             self.msg_func(self.chat_id, f'Ничего не попишешь. Наш {self.bot_name} стал настоящим мудрецом!')
 
         else:
             self.msg_func(self.chat_id, f'{self.bot_name} стал чуточку лучше!')
 
-    
     def get_bot_info(self, event) -> str:
         '''
             Возвращает информацию о Пепе:
@@ -148,22 +154,6 @@ class Pepe:
                 + f'Текущее развитие: {self._get_str_state()}'\
                 + f'Текущее состояние: {self._get_str_alive_status()}\n'
                 )
-    
-    def _get_str_state(self):
-        if self.state == PepeState.Egg:
-            return 'Яйцо'
-        if self.state == PepeState.Young:
-            return 'Молодой Пепега'
-        if self.state == PepeState.Adult:
-            return 'Взрослый Пепега'
-        if self.state == PepeState.Ancient:
-            return 'Мудрый Пепега'  
-
-    def _get_str_alive_status(self):
-        if self.is_alive:
-            return "Жив"
-        else:
-            return "Мёртв"
 
     def die(self) -> str:
         ''' 
@@ -174,7 +164,46 @@ class Pepe:
         self.is_alive = False
         self._stop_timer()
         return self.msg_func(self.chat_id, f'{self.bot_name} издаёт последний вздох, прежде чем отправиться к праотцам')
+        
+    def revive(self) -> None:
+        '''
+             Возрождение бота. Восстанавливает значение здоровья до максимального,
+             но обнуляет весь набранный опыт и уровни
+        '''
+        self.is_alive = True
+        self.health.restore()
+        self.current_exp = 0
+        self.current_level = 0
+        self.next_level_exp = 65
+        self.progress = PepeProgress.Egg
+        
+    def go_to_sleep(self, event = None) -> None:
+        '''
+            Работает только из состояния PepeState.Idle
+            Отправляет Пепе спать. Срабатывает по таймеру, но так же может быть вызвана командой.
+            Если вызывается командой, то есть шанс, что Пепе обидится и не послушается команды
+        '''
+        if event is None:
+            self.is_sleeping = True
+
+            self.msg_func(self.chat_id, f"{self.bot_name} укладывается спать")
+            self._start_func_at_hour(self.wake_up, self.wake_up_time)
+        else:
+            self.msg_func(self.chat_id, f"{self.bot_name} обидчиво смотрит в сторону того, кто заставляет его лечь спать")
     
+    def wake_up(self, event = None) -> None:
+        '''
+            Работает только из состояния PepeState.Sleep
+            Будит Пепе. Срабатывает по таймеру, но так же может быть вызвана командой. 
+            При вызове командой ночью (с 12 ночи до 7 утра) Пепе будет ворчать, но не встанет с постели
+        '''
+        if event is None:
+            self.is_sleeping = False
+            self.msg_func(self.chat_id, f"{self.bot_name}, потягиваясь, просыпается. Доброе утро!")
+            self._start_func_at_hour(self.go_to_sleep, self.go_to_sleep_time)
+        else:
+            self.msg_func(self.chat_id, f"{self.bot_name} недовольно ворчит, переворачиваясь на другой бок")
+
     def _set_timer(self) -> None:
         self.idle_timer = threading.Timer(self.time_to_idle, self.on_idle)
         self.idle_timer.start()
@@ -189,16 +218,36 @@ class Pepe:
         self.idle_timer = threading.Timer(self.time_to_idle, self.on_idle)
         self.idle_timer.start()
 
-    def revive(self) -> None:
+    def _get_str_state(self):
+        if self.progress == PepeProgress.Egg:
+            return 'Яйцо'
+        if self.progress == PepeProgress.Young:
+            return 'Молодой Пепега'
+        if self.progress == PepeProgress.Adult:
+            return 'Взрослый Пепега'
+        if self.progress == PepeProgress.Ancient:
+            return 'Мудрый Пепега'  
+
+    def _get_str_alive_status(self):
+        if self.is_alive:
+            return "Жив"
+        else:
+            return "Мёртв"
+    
+    def _generate_name(self):
         '''
-             Возрождение бота. Восстанавливает значение здоровья до максимального,
-             но обнуляет весь набранный опыт и уровни
+            Присваивает случайное имя из списка
         '''
-        self.is_alive = True
-        self.health.restore()
-        self.current_exp = 0
-        self.current_level = 0
-        self.next_level_exp = 65
-        self.state = PepeState.Egg 
-        
+        self.bot_name = '' #TODO: Класс, хранящий в себе все реплики, названия и имена
+
+
+    def _start_func_at_hour(self, func, hour):
+        now = datetime.now()
+        run_at = now
+        if now.hour <= hour:
+            run_at = timedelta(hours=(hour - now.hour), minutes= - now.minute)
+        else:
+            run_at = timedelta(days=1, hours=(hour - now.hour), minutes= - now.minute)
+
+        threading.Timer(abs(run_at.total_seconds()), func).start()
 

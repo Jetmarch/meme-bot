@@ -1,6 +1,6 @@
 import sqlite3
 from pepe_stat import Stat
-from pepe_state import PepeState
+from pepe_progress import PepeProgress
 from pepe_entity import Pepe
 
 class DBWrap:
@@ -34,19 +34,19 @@ class DBWrap:
             pepe.current_level = data[4]
             pepe.current_exp = data[5]
             pepe.health = Stat(data[7], data[6])
-            pepe.state = self._get_pepe_state(data[8])
+            pepe.progress = self._get_pepe_state(data[8])
             list_of_pepe.append(pepe)
         return list_of_pepe
     
     def _get_pepe_state(self, data):
-        if data == PepeState.Egg.value:
-            return PepeState.Egg
-        elif data == PepeState.Young.value:
-            return PepeState.Young
-        elif data == PepeState.Adult.value:
-            return PepeState.Adult
-        elif data == PepeState.Ancient.value:
-            return PepeState.Ancient
+        if data == PepeProgress.Egg.value:
+            return PepeProgress.Egg
+        elif data == PepeProgress.Young.value:
+            return PepeProgress.Young
+        elif data == PepeProgress.Adult.value:
+            return PepeProgress.Adult
+        elif data == PepeProgress.Ancient.value:
+            return PepeProgress.Ancient
 
     def add_pepe(self, pepe):
         pass
@@ -55,7 +55,7 @@ class DBWrap:
         cur = self.con.cursor()
         cur.execute("UPDATE t_pepe_entity SET is_alive = ?, current_level = ?, current_exp = ?, current_health = ?, max_health = ?, state = ? \
             WHERE id = ?", 
-            [pepe.is_alive, pepe.current_level, pepe.current_exp, pepe.health.current, pepe.health.max, pepe.state.value, pepe.bot_id])
+            [pepe.is_alive, pepe.current_level, pepe.current_exp, pepe.health.current, pepe.health.max, pepe.progress.value, pepe.bot_id])
         self.con.commit()
         
 
