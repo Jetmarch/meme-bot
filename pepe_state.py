@@ -1,7 +1,5 @@
-import datetime
-from enum import Enum
-import random
-import threading
+from datetime import datetime
+import random, threading
 from logger import Log, LogType
 from pepe_progress import PepeProgress
 
@@ -10,7 +8,18 @@ class BaseState:
         self.pepe = pepe
 
     def on_message(self, event):
-        pass
+        if event.message.text.lower().strip(' ') == self.pepe.bot_prefix + 'погладил':
+            self.on_pat(event)
+        elif event.message.text.lower().strip(' ') == self.pepe.bot_prefix + 'статы':
+            self.get_bot_info(event)
+        elif event.message.text.lower().strip(' ') == self.pepe.bot_prefix + 'ап': #дебаг
+            self.pepe.on_level_up(event)
+        elif event.message.text.lower().strip(' ') == 'умри': #дебаг
+            self.pepe._set_die()
+        elif event.message.text.lower().strip(' ') == 'спи': #дебаг
+            self.pepe._set_sleep()
+        elif event.message.text.lower().strip(' ') == 'живи': #дебаг
+            self.pepe._set_idle()
     
     def on_pat(self, event):
         pass
@@ -29,7 +38,8 @@ class BaseState:
                 + f'Текущий уровень: {self.pepe.current_level} \n' \
                 + f'Текущий опыт: {self.pepe.current_exp}/{self.pepe.next_level_exp}\n' \
                 + f'Текущее развитие: {self.pepe._get_str_state()}\n'\
-                + f'Текущее состояние: {self.pepe.current_state.__str__()}\n'
+                + f'Текущее состояние: {self.pepe.current_state.__str__()}\n',
+                event
                 )
 
     def on_idle(self):
@@ -45,13 +55,17 @@ class IdleState(BaseState):
 
     # Пепе будет укладываться спать в 11 вечера и просыпаться в 8 утра
     # Во время сна не будет происходить снижение здоровья за бездействие
-    is_sleeping = False
     go_to_sleep_time = 23
     wake_up_time = 7
+
+    chance_of_answer_on_message = 10
 
     def __init__(self, pepe) -> None:
         super().__init__(pepe)
         self._set_idle_timer()
+
+        if pepe.health.current <= 0:
+            pepe.current_state = DeadState(pepe)
 
     def on_message(self, event):
         '''
@@ -64,18 +78,23 @@ class IdleState(BaseState):
             6. Пересланное сообщение с видео из ленты
 
         '''
+        now = datetime.now()
+        if now.hour >= self.go_to_sleep_time or now.hour <= self.wake_up_time:
+            self.go_to_sleep()
+            return
+
         super().on_message(event)
+
         self.pepe.health.change(1)
         self._restart_timer()
         self.pepe.current_exp += 1
-        Log.log(LogType.DEBUG, "Активность! Пепе доволен")
-
         
         if self.pepe.current_exp >= self.pepe.next_level_exp:
             self.pepe.on_level_up(event)
         
         # С небольшим шансом бот будет как-то комментировать активность в беседе
-        if random.randint(0, 9) == 1:
+        if random.randint(0, 100) <= self.chance_of_answer_on_message:
+            #TODO: Иногда присылать гифки с облизывающимся Пепе
             return self.pepe.msg_func(self.pepe.chat_id, f'{self.pepe.bot_name} довольно облизывается, видя активность в беседе')
         else:
             return ''
@@ -86,10 +105,10 @@ class IdleState(BaseState):
             Обновляет таймер
         '''
         self._restart_timer()
-        self.pepe.msg_func(event.pepe.chat_id, f'{self.pepe.bot_name} довольно нежится от поглаживаний')
+        self.pepe.msg_func(self.pepe.chat_id, f'{self.pepe.bot_name} довольно нежится от поглаживаний', event)
 
     def get_bot_info(self, event):
-        super().get_bot_info()
+        super().get_bot_info(event)
 
     def on_idle(self):
         super().on_idle()
@@ -114,22 +133,18 @@ class IdleState(BaseState):
             return self.pepe.msg_func(self.pepe.chat_id, f'{self.pepe.bot_name} помирает со скуки')
 
         if self.pepe.health.current <= 0:
-            self._stop_timer()
-            return self.pepe.msg_func(self.pepe.chat_id, self.die())
+            self.die()
 
     def go_to_sleep(self, event = None) -> None:
         '''
-            Работает только из состояния PepeState.Idle
             Отправляет Пепе спать. Срабатывает по таймеру, но так же может быть вызвана командой.
             Если вызывается командой, то есть шанс, что Пепе обидится и не послушается команды
         '''
         if event is None:
             self.pepe.msg_func(self.pepe.chat_id, f"{self.pepe.bot_name} укладывается спать")
             self.pepe.current_state = SleepState(self.pepe)
-            #TODO: Переделать пробуждение бота не по времени, а ЧЕРЕЗ некоторое время после того, как он уснул
-            #self._start_func_at_hour(self.wake_up, self.wake_up_time)
         else:
-            self.pepe.msg_func(self.pepe.chat_id, f"{self.pepe.bot_name} обидчиво смотрит в сторону того, кто заставляет его лечь спать")
+            self.pepe.msg_func(self.pepe.chat_id, f"{self.pepe.bot_name} обидчиво смотрит в сторону того, кто заставляет его лечь спать", event)
 
     def die(self) -> None:
         ''' 
@@ -137,8 +152,9 @@ class IdleState(BaseState):
             Останавливает таймер и отключает бота
         '''
         Log.log(LogType.WARNING, f'Пепе из беседы {self.pepe.chat_id} умер!')
-        self.pepe.current_state = DeadState(self.pepe)
+        self._stop_timer()
         self.pepe.msg_func(self.pepe.chat_id, f'{self.pepe.bot_name} издаёт последний вздох, прежде чем отправиться к праотцам')
+        self.pepe.current_state = DeadState(self.pepe)
 
     def _set_idle_timer(self) -> None:
         self.idle_timer = threading.Timer(self.time_to_idle, self.on_idle)
@@ -168,8 +184,6 @@ class DeadState(BaseState):
         '''
         super().on_message(event)
 
-        if event.message.text.lower().strip(' ') == self.pepe.bot_prefix + 'статы':
-            self.get_bot_info(event)
         if event.message.text.lower().strip(' ') == self.pepe.bot_prefix + 'воскресить':
             self.revive()
 
@@ -177,7 +191,7 @@ class DeadState(BaseState):
         pass
     
     def get_bot_info(self, event):
-        super().get_bot_info()
+        super().get_bot_info(event)
 
     def on_idle(self):
         super().on_idle()
@@ -189,17 +203,15 @@ class DeadState(BaseState):
         '''
         self.pepe.health.restore()
         self.pepe.current_exp = 0
-        self.pepe.current_level = 0
+        self.pepe.current_level = 1
         self.pepe.next_level_exp = 65
         self.pepe.progress = PepeProgress.Egg
-        self.pepe.current_state = IdleState(self.pepe)
-        #TODO: сообщение о воскрешении
         self.pepe.msg_func(self.pepe.chat_id, f'Круг жизни возвращается и {self.pepe.bot_name} вновь появляется на свет')
+        self.pepe.current_state = IdleState(self.pepe)
     
     def __str__(self) -> str:
         return "Мёртв"
     
-
 class SleepState(BaseState):
 
     def __init__(self, pepe) -> None:
@@ -207,11 +219,14 @@ class SleepState(BaseState):
         self.current_messages_count = 0
         self.count_message_to_awake = 10
 
+        pepe._start_func_after_hours(self.wake_up, 8)
+
     def on_message(self, event):
         '''
             Бот проснётся, если количество сообщений превысит внутренний счётчик
             Если его разбудили ночью и какое-то время после никто ничего не писал в беседу, то он засыпает сам
         '''
+        super().on_message(event)
         self.current_messages_count += 1
 
         if self.current_messages_count >= self.count_message_to_awake:
@@ -223,24 +238,23 @@ class SleepState(BaseState):
             Сбрасывает счётчик сообщений, которые должны его разбудить
         '''
         self.current_messages_count = 0
-        self.pepe.msg_func(self.pepe.chat_id, f'{self.pepe.bot_name} довольно бурчит в подушку и крепко засыпает')
+        self.pepe.msg_func(self.pepe.chat_id, f'{self.pepe.bot_name} довольно бурчит в подушку и крепко засыпает', event)
         
 
     def wake_up(self, event = None) -> None:
         '''
-            Работает только из состояния PepeState.Sleep
             Будит Пепе. Срабатывает по таймеру, но так же может быть вызвана командой. 
-            При вызове командой ночью (с 12 ночи до 7 утра) Пепе будет ворчать, но не встанет с постели
+            TODO: При вызове командой ночью (с 12 ночи до 7 утра) Пепе будет ворчать, но не встанет с постели
         '''
         if event is None:
-            self.pepe.msg_func(self.pepe.chat_id, f"{self.pepe.bot_name}, потягиваясь, просыпается. Доброе утро!")
-            self.pepe.current_state = IdleState(self.pepe)
-            #self._start_func_at_hour(self.go_to_sleep, self.go_to_sleep_time)
+            self.pepe.msg_func(self.pepe.chat_id, f"{self.pepe.bot_name}, потягиваясь, просыпается")
         else:
-            self.pepe.msg_func(self.pepe.chat_id, f"{self.pepe.bot_name} недовольно ворчит, переворачиваясь на другой бок")
+            self.pepe.msg_func(self.pepe.chat_id, f"{self.pepe.bot_name} недовольно ворчит, переворачиваясь на другой бок", event)
+
+        self.pepe.current_state = IdleState(self.pepe)
 
     def get_bot_info(self, event):
-        super().get_bot_info()
+        super().get_bot_info(event)
 
     def on_idle(self):
         super().on_idle()

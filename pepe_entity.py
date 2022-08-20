@@ -25,15 +25,8 @@ class Pepe:
         self.next_level_exp = max(int((self.current_exp * self.current_exp) * 0.65), 65)
         self.is_alive = True
         self.progress = PepeProgress.Egg
-
-        self._check_and_set_current_state()
+        self.current_state = IdleState(self)
         
-    def _check_and_set_current_state(self):
-        #TODO: Пусть состояния отвечают сами за переходы. По умолчанию будет присвоен IdleState
-        if not self.is_alive:
-            self.current_state = DeadState(self)
-        else:
-            self.current_state = IdleState(self)
     
     def _set_die(self):
         self.current_state = DeadState(self)
@@ -47,6 +40,11 @@ class Pepe:
     def set_msg_func(self, msg_func):
         # FIX_ME: Пересмотреть возможность взаимодействия с vk_api
         self.msg_func = msg_func
+        #self.greeting()
+
+    def greeting(self) -> None:
+        if self.chat_id != 0:
+            self.msg_func(self.chat_id, f"{self.bot_name} неожиданно появляется и приветствует всех!")
     
     def on_idle(self) -> None:
         self.current_state.on_idle()
@@ -55,7 +53,7 @@ class Pepe:
         ''' 
             Событие-реакция бота на поглаживание через команду в беседе
         '''
-        self.current_state.on_pat()
+        self.current_state.on_pat(event)
     
     def on_message(self, event) -> None:
         ''' 
@@ -126,7 +124,7 @@ class Pepe:
         '''
         self.bot_name = '' #TODO: Класс, хранящий в себе все реплики, названия и имена
 
-    def _start_func_after_hours(self, func, hour, minutes):
+    def _start_func_after_hours(self, func, hour, minutes = 0):
         run_at = timedelta(hours=hour, minutes=minutes)
         threading.Timer(run_at.total_seconds(), func).start()
         print(run_at)
