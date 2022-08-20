@@ -1,7 +1,7 @@
 import json
 import time, vk_api, requests
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
-from db_wrapper import DBWrap
+from pepe_entity import DBWrap
 from logger import Log, LogType
 
 class vk_wrapper:
@@ -27,8 +27,7 @@ class vk_wrapper:
         self.vk = vk_api.VkApi(token=self.token)
         self.longpoll = VkBotLongPoll(self.vk, self.bot_group_id, 5)
 
-        self.db_wrap = DBWrap()
-        self.pepe_list = self.db_wrap.get_all_pepe()
+        self.pepe_list = DBWrap.get_all_pepe()
 
         for pepe in self.pepe_list:
             pepe.set_msg_func(self.write_msg)
@@ -70,7 +69,7 @@ class vk_wrapper:
                                 if pepe is not None:
                                     Log.log(LogType.DEBUG, 'Пепе для беседы ', event.chat_id, ' ', pepe.bot_name, ' id: ', pepe.bot_id)                     
                                     pepe.on_message(event)
-                                    self.db_wrap.update_pepe(pepe)
+                                    DBWrap.update_pepe(pepe)
                                     
                                 #if event.message.text.lower().strip(' ') == self.bot_prefix + 'завести':
                                 #    self.write_msg(event.chat_id, 'Пока нет возможности завести Пепе, но такая возможность скоро будет доступна')
