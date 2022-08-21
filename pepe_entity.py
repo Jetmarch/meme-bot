@@ -27,21 +27,11 @@ class Pepe:
         self.is_alive = True
         self.progress = PepeProgress.Egg
         self.current_state = IdleState(self)
-        
-    
-    def _set_die(self):
-        self.current_state = DeadState(self)
-
-    def _set_sleep(self):
-        self.current_state = SleepState(self)
-
-    def _set_idle(self):
-        self.current_state = IdleState(self)
     
     def set_msg_func(self, msg_func):
         # FIX_ME: Пересмотреть возможность взаимодействия с vk_api
         self.msg_func = msg_func
-        #self.greeting()
+        self.greeting()
 
     def greeting(self) -> None:
         if self.chat_id != 0:
@@ -125,10 +115,11 @@ class Pepe:
         '''
         self.bot_name = '' #TODO: Класс, хранящий в себе все реплики, названия и имена
 
-    def _start_func_after_hours(self, func, hour, minutes = 0):
+    def _start_func_after_time(self, func, hour, minutes = 0):
         run_at = timedelta(hours=hour, minutes=minutes)
-        threading.Timer(run_at.total_seconds(), func).start()
-        print(run_at)
+        timer = threading.Timer(run_at.total_seconds(), func)
+        timer.start()
+        return timer
 
 class DBWrap:
 
@@ -260,12 +251,6 @@ class BaseState:
             self.get_bot_info(event)
         elif event.message.text.lower().strip(' ') == self.pepe.bot_prefix + 'ап': #дебаг
             self.pepe.on_level_up(event)
-        elif event.message.text.lower().strip(' ') == 'умри': #дебаг
-            self.pepe._set_die()
-        elif event.message.text.lower().strip(' ') == 'спи': #дебаг
-            self.pepe._set_sleep()
-        elif event.message.text.lower().strip(' ') == 'живи': #дебаг
-            self.pepe._set_idle()
     
     def on_pat(self, event):
         pass
@@ -462,7 +447,7 @@ class SleepState(BaseState):
         self.current_messages_count = 0
         self.count_message_to_awake = 10
 
-        pepe._start_func_after_hours(self.wake_up, 8)
+        self.alarm = pepe._start_func_after_time(self.wake_up, 8)
 
     def on_message(self, event):
         '''
@@ -473,7 +458,7 @@ class SleepState(BaseState):
         self.current_messages_count += 1
 
         if self.current_messages_count >= self.count_message_to_awake:
-            self.wake_up()
+            self.wake_up(event)
         
 
     def on_pat(self, event):
@@ -492,8 +477,8 @@ class SleepState(BaseState):
         if event is None:
             self.pepe.msg_func(self.pepe.chat_id, f"{self.pepe.bot_name}, потягиваясь, просыпается")
         else:
-            self.pepe.msg_func(self.pepe.chat_id, f"{self.pepe.bot_name} недовольно ворчит, переворачиваясь на другой бок", event)
-
+            self.pepe.msg_func(self.pepe.chat_id, f"{self.pepe.bot_name} недовольно ворчит, сонно протирает глаза и встаёт с постели", event)
+        self.alarm.cancel()
         self.pepe.current_state = IdleState(self.pepe)
 
     def get_bot_info(self, event):
