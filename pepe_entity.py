@@ -296,6 +296,9 @@ class IdleState(BaseState):
         self._set_idle_timer()
         if pepe.health.current <= 0:
             pepe.current_state = DeadState(pepe)
+        
+        now = datetime.now()
+        self.last_time_activity = now
 
     def on_message(self, event):
         '''
@@ -308,12 +311,12 @@ class IdleState(BaseState):
             6. Пересланное сообщение с видео из ленты
 
         '''
+        super().on_message(event)
+
         now = datetime.now()
         if now.hour >= self.go_to_sleep_time or now.hour <= self.wake_up_time:
             self.go_to_sleep()
             return
-
-        super().on_message(event)
 
         self.pepe.health.change(1)
         self._restart_timer()
@@ -322,8 +325,35 @@ class IdleState(BaseState):
         if self.pepe.current_exp >= self.pepe.next_level_exp:
             self.pepe.on_level_up(event)
         
-        # С небольшим шансом бот будет как-то комментировать активность в беседе
-        if random.randint(0, 100) <= self.chance_of_answer_on_message:
+        self._comment_activity()
+
+    def _comment_activity(self):
+        '''
+            Комментирует активность с шансом, зависящим от времени последней активности
+            Чем больше времени никто не писал, тем выше шанс того, что Пепега ответит
+        '''
+        now = datetime.now()
+        time_sub = now - self.last_time_activity
+
+        if (time_sub.seconds * 60) <= 15:
+            self._send_message_with_random_chance(5)
+        
+        if (time_sub.seconds * 60) > 15 and (time_sub.seconds * 60) <= 30:
+            self._send_message_with_random_chance(20)
+
+        if (time_sub.seconds * 60) > 30 and (time_sub.seconds * 60) <= 40:
+            self._send_message_with_random_chance(50)
+        
+        if (time_sub.seconds * 60) > 40:
+            self._send_message_with_random_chance(100)
+        
+        self.last_time_activity = datetime.now()
+    
+    def _send_message_with_random_chance(self, chance_in_percent):
+        '''
+            Отправляет сообщение в беседу с указанным шансом
+        '''
+        if random.randint(0, 100) <= chance_in_percent:
             #TODO: Иногда присылать гифки с облизывающимся Пепе
             self.pepe.msg_func(self.pepe.chat_id, PepeSpeech.on_message(self, self.pepe.progress))
 
