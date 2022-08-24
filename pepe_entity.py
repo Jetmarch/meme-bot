@@ -354,31 +354,31 @@ class IdleState(BaseState):
             Комментирует активность с шансом, зависящим от времени последней активности
             Чем больше времени никто не писал, тем выше шанс того, что Пепега ответит
         '''
-
-        if '!' == event.message.text.lower()[0]:
-            speech = PepeSpeech.on_question(self, self.pepe.progress, event.message.text.lower())
-            if speech is not None:
-                self.pepe.msg_func(self.pepe.chat_id, speech)
+        if event.message.text != '':
+            if '!' == event.message.text.lower()[0]:
+                speech = PepeSpeech.on_question(self, self.pepe.progress, event.message.text.lower())
+                if speech is not None:
+                    self.pepe.msg_func(self.pepe.chat_id, speech)
+                else:
+                    self.pepe.msg_func(self.pepe.chat_id, PepeSpeech.on_question(self, self.pepe.progress, 'нет ответа'))
             else:
-                self.pepe.msg_func(self.pepe.chat_id, PepeSpeech.on_question(self, self.pepe.progress, 'нет ответа'))
-        else:
-            self._time_based_chance_default_comment()
+                self._time_based_chance_default_comment()
         
     
     def _time_based_chance_default_comment(self):
         now = datetime.now()
         time_sub = now - self.last_time_activity
 
-        if (time_sub.seconds * 60) <= 15:
+        if (time_sub.seconds / 60) <= 15:
             self._send_message_with_random_chance(5)
         
-        if (time_sub.seconds * 60) > 15 and (time_sub.seconds * 60) <= 30:
+        if (time_sub.seconds / 60) > 15 and (time_sub.seconds / 60) <= 30:
             self._send_message_with_random_chance(20)
 
-        if (time_sub.seconds * 60) > 30 and (time_sub.seconds * 60) <= 40:
+        if (time_sub.seconds / 60) > 30 and (time_sub.seconds / 60) <= 40:
             self._send_message_with_random_chance(50)
         
-        if (time_sub.seconds * 60) > 40:
+        if (time_sub.seconds / 60) > 40:
             self._send_message_with_random_chance(100)
         
         self.last_time_activity = datetime.now()

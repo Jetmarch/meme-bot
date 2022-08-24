@@ -62,6 +62,8 @@ class vk_wrapper:
             try:
                 for event in self.longpoll.listen():
                     try:
+                        Log.log(LogType.DEBUG, event)
+                        
                         if event.type == VkBotEventType.MESSAGE_NEW:
                             if event.from_chat:
                                 pepe = self._get_pepe_by_chat_id(event.chat_id)
@@ -73,6 +75,8 @@ class vk_wrapper:
                                     
                                 #if event.message.text.lower().strip(' ') == self.bot_prefix + 'завести':
                                 #    self.write_msg(event.chat_id, 'Пока нет возможности завести Пепе, но такая возможность скоро будет доступна')
+                                
+                            
                     except Exception as e:
                         self.write_msg(event.chat_id, 'Что-то пошло не так...')
                         Log.log(LogType.CRITICAL, "Ошибка в основном цикле обработки событий - ", str(e))
