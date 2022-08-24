@@ -4,9 +4,6 @@ from pepe_progress import PepeProgress
 from pepe_stat import Stat
 from datetime import timedelta, datetime
 
-# from pepe_state import IdleState, DeadState, SleepState
-
-
 
 class Pepe:
 
@@ -199,6 +196,21 @@ class DBWrap:
         
         con.close()
         return ls
+    
+    @staticmethod
+    def get_answer(state, progress, event_name, question):
+        #Удаление первого символа, если это "!"
+        if question[0] == '!':
+            question = question[1:]
+        con = sqlite3.connect(DBWrap.db_file_name)
+        cur = con.cursor()
+        res = cur.execute("SELECT speech FROM t_speech WHERE state = ? and progress = ? and event = ? and question = ?;", [str(state), str(progress), str(event_name), str(question)])
+        ls = []
+        for speech in res.fetchall():
+            ls.append(speech)
+        
+        con.close()
+        return ls
 
 class PepeSpeech:
     '''
@@ -222,8 +234,19 @@ class PepeSpeech:
     
     @staticmethod
     def on_message(state, progress) -> str:
-        lst = DBWrap.get_speech(state, progress, PepeSpeech.on_message.__name__)
-        return lst[random.randint(0, len(lst) - 1)][0]
+        try:
+            lst = DBWrap.get_speech(state, progress, PepeSpeech.on_message.__name__)
+            return lst[random.randint(0, len(lst) - 1)][0]
+        except:
+            return None
+    
+    @staticmethod
+    def on_question(state, progress, question) -> str:
+        try:
+            lst = DBWrap.get_answer(state, progress, PepeSpeech.on_question.__name__, question)
+            return lst[random.randint(0, len(lst) - 1)][0]
+        except:
+            return None
 
     @staticmethod
     def on_night_message(state, progress) -> str:
@@ -309,7 +332,6 @@ class IdleState(BaseState):
             4. Пересланное сообщение с картинкой из ленты
             5. Пересланное сообщение с несколькими картинками из ленты
             6. Пересланное сообщение с видео из ленты
-
         '''
         super().on_message(event)
 
@@ -325,13 +347,25 @@ class IdleState(BaseState):
         if self.pepe.current_exp >= self.pepe.next_level_exp:
             self.pepe.on_level_up(event)
         
-        self._comment_activity()
+        self._comment_activity(event)
 
-    def _comment_activity(self):
+    def _comment_activity(self, event):
         '''
             Комментирует активность с шансом, зависящим от времени последней активности
             Чем больше времени никто не писал, тем выше шанс того, что Пепега ответит
         '''
+
+        if '!' == event.message.text.lower()[0]:
+            speech = PepeSpeech.on_question(self, self.pepe.progress, event.message.text.lower())
+            if speech is not None:
+                self.pepe.msg_func(self.pepe.chat_id, speech)
+            else:
+                self.pepe.msg_func(self.pepe.chat_id, PepeSpeech.on_question(self, self.pepe.progress, 'нет ответа'))
+        else:
+            self._time_based_chance_default_comment()
+        
+    
+    def _time_based_chance_default_comment(self):
         now = datetime.now()
         time_sub = now - self.last_time_activity
 
