@@ -2,5 +2,6 @@
 *.jpeg
 *.txt
 *.json
+__pycache__/
 *.pyc
-*.pyc
+*.sql

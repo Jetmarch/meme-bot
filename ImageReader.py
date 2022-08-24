@@ -1,10 +1,6 @@
 import string
-import cv2
-import numpy as np
 import easyocr
-import matplotlib.pyplot as plt
 import pytesseract
-from PIL import Image, ImageEnhance, ImageFilter
 
 
 class ImageReader:
