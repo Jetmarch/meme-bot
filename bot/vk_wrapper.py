@@ -72,8 +72,6 @@ class vk_wrapper:
             try:
                 for event in self.longpoll.listen():
                     try:
-                        Log.log(LogType.DEBUG, event.chat_id)
-                        
                         if event.type == VkBotEventType.MESSAGE_NEW:
                             if event.from_chat:
                                 pepe = self._get_pepe_by_chat_id(event.chat_id)

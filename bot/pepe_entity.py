@@ -4,6 +4,14 @@ from pepe_progress import PepeProgress
 from pepe_stat import Stat
 from datetime import timedelta, datetime
 
+class Config:
+
+    @staticmethod
+    def get_value(key):
+        try:
+            return DBWrap.find_config_value_by_key(key)[0][0]
+        except IndexError:
+            Log.log(LogType.ERROR, f'Не найден ключ "{key}" в конфиге базы данных')
 
 class Pepe:
 
@@ -134,10 +142,13 @@ class DBWrap:
         return lst
     
     @staticmethod
-    def _execute_query_fetchall(query):
+    def _execute_query_fetchall(query, arg_list = None):
         con = sqlite3.connect(DBWrap.db_file_name)
         cur = con.cursor()
-        res = cur.execute(query)
+        if arg_list is not None:
+            res = cur.execute(query, arg_list)
+        else:
+            res = cur.execute(query)
         con.commit()
         lst = res.fetchall()
         con.close()
@@ -192,6 +203,11 @@ class DBWrap:
         con.close()
 
         return ls[random.randint(0, len(ls) - 1)][0]
+
+    @staticmethod
+    def find_config_value_by_key(key):
+        res = DBWrap._execute_query_fetchall("SELECT value FROM t_config WHERE key = ?", [key])
+        return res
 
     @staticmethod
     def update_pepe(pepe: Pepe):
@@ -323,12 +339,12 @@ class BaseState:
 class IdleState(BaseState):
 
     # Пепега будет уведомлять о скуке каждый час
-    time_to_idle =  60 * 60
+    time_to_idle =  int(Config.get_value('bot_idle_interval'))
 
     # Пепе будет укладываться спать в 11 вечера и просыпаться в 8 утра
     # Во время сна не будет происходить снижение здоровья за бездействие
-    go_to_sleep_time = 24
-    wake_up_time = 7
+    go_to_sleep_time = int(Config.get_value('bot_go_to_sleep_hour'))
+    wake_up_time = int(Config.get_value('bot_wake_up_hour'))
 
     chance_of_answer_on_message = 10
 
@@ -530,9 +546,9 @@ class SleepState(BaseState):
     def __init__(self, pepe) -> None:
         super().__init__(pepe)
         self.current_messages_count = 0
-        self.count_message_to_awake = 10
+        self.count_messages_to_awake = int(Config.get_value('bot_count_messages_to_awake'))
 
-        self.alarm = pepe._start_func_after_time(self.wake_up, 8)
+        self.alarm = pepe._start_func_after_time(self.wake_up, int(Config.get_value('bot_sleep_time_in_hours')))
 
     def on_message(self, event):
         '''
@@ -542,7 +558,7 @@ class SleepState(BaseState):
         super().on_message(event)
         self.current_messages_count += 1
 
-        if self.current_messages_count >= self.count_message_to_awake:
+        if self.current_messages_count >= self.count_messages_to_awake:
             self.wake_up(event)
         
 
