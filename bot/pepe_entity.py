@@ -28,7 +28,7 @@ class Pepe:
     def set_msg_func(self, msg_func):
         # FIX_ME: Пересмотреть возможность взаимодействия с vk_api
         self.msg_func = msg_func
-        self.greeting()
+        #self.greeting()
 
     def greeting(self) -> None:
         if self.chat_id != 0:
@@ -173,7 +173,25 @@ class DBWrap:
 
     @staticmethod
     def add_pepe(pepe):
-        pass
+        con = sqlite3.connect(DBWrap.db_file_name)
+        cur = con.cursor()
+        cur.execute("INSERT INTO t_pepe_entity (name, chat_id, current_level, current_exp, current_health, max_health, state) \
+                VALUES (?, ?, ?, ?, ?, ?, ?)", [pepe.bot_name, pepe.chat_id, pepe.current_level,
+                pepe.current_exp, pepe.health.current, pepe.health.max, pepe.progress.value])
+        con.commit()
+        con.close()
+    
+    @staticmethod
+    def get_random_pepe_name():
+        con = sqlite3.connect(DBWrap.db_file_name)
+        cur = con.cursor()
+        res = cur.execute("SELECT name FROM t_bot_names;")
+        ls = []
+        for name in res.fetchall():
+            ls.append(name)
+        con.close()
+
+        return ls[random.randint(0, len(ls) - 1)][0]
 
     @staticmethod
     def update_pepe(pepe: Pepe):
@@ -334,7 +352,10 @@ class IdleState(BaseState):
             6. Пересланное сообщение с видео из ленты
         '''
         super().on_message(event)
-
+        if event.message.text.lower().strip(' ') == self.pepe.bot_prefix + 'погладил' \
+        or event.message.text.lower().strip(' ') == self.pepe.bot_prefix + 'статы':
+            return
+        
         now = datetime.now()
         if now.hour >= self.go_to_sleep_time or now.hour <= self.wake_up_time:
             self.go_to_sleep()
@@ -351,7 +372,7 @@ class IdleState(BaseState):
 
     def _comment_activity(self, event):
         '''
-            Комментирует активность с шансом, зависящим от времени последней активности
+            Отвечает на вопрос, либо комментирует активность с шансом, зависящим от времени последней активности
             Чем больше времени никто не писал, тем выше шанс того, что Пепега ответит
         '''
         if event.message.text != '':
