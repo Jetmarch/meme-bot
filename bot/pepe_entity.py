@@ -4,6 +4,14 @@ from pepe_progress import PepeProgress
 from pepe_stat import Stat
 from datetime import timedelta, datetime
 
+class Config:
+
+    @staticmethod
+    def get_value(key):
+        try:
+            return DBWrap.find_config_value_by_key(key)[0][0]
+        except IndexError:
+            Log.log(LogType.ERROR, f'Не найден ключ "{key}" в конфиге базы данных')
 
 class Pepe:
 
@@ -28,7 +36,7 @@ class Pepe:
     def set_msg_func(self, msg_func):
         # FIX_ME: Пересмотреть возможность взаимодействия с vk_api
         self.msg_func = msg_func
-        self.greeting()
+        #self.greeting()
 
     def greeting(self) -> None:
         if self.chat_id != 0:
@@ -134,10 +142,13 @@ class DBWrap:
         return lst
     
     @staticmethod
-    def _execute_query_fetchall(query):
+    def _execute_query_fetchall(query, arg_list = None):
         con = sqlite3.connect(DBWrap.db_file_name)
         cur = con.cursor()
-        res = cur.execute(query)
+        if arg_list is not None:
+            res = cur.execute(query, arg_list)
+        else:
+            res = cur.execute(query)
         con.commit()
         lst = res.fetchall()
         con.close()
@@ -173,7 +184,30 @@ class DBWrap:
 
     @staticmethod
     def add_pepe(pepe):
-        pass
+        con = sqlite3.connect(DBWrap.db_file_name)
+        cur = con.cursor()
+        cur.execute("INSERT INTO t_pepe_entity (name, chat_id, current_level, current_exp, current_health, max_health, state) \
+                VALUES (?, ?, ?, ?, ?, ?, ?)", [pepe.bot_name, pepe.chat_id, pepe.current_level,
+                pepe.current_exp, pepe.health.current, pepe.health.max, pepe.progress.value])
+        con.commit()
+        con.close()
+    
+    @staticmethod
+    def get_random_pepe_name():
+        con = sqlite3.connect(DBWrap.db_file_name)
+        cur = con.cursor()
+        res = cur.execute("SELECT name FROM t_bot_names;")
+        ls = []
+        for name in res.fetchall():
+            ls.append(name)
+        con.close()
+
+        return ls[random.randint(0, len(ls) - 1)][0]
+
+    @staticmethod
+    def find_config_value_by_key(key):
+        res = DBWrap._execute_query_fetchall("SELECT value FROM t_config WHERE key = ?", [key])
+        return res
 
     @staticmethod
     def update_pepe(pepe: Pepe):
@@ -305,12 +339,12 @@ class BaseState:
 class IdleState(BaseState):
 
     # Пепега будет уведомлять о скуке каждый час
-    time_to_idle =  60 * 60
+    time_to_idle =  int(Config.get_value('bot_idle_interval'))
 
     # Пепе будет укладываться спать в 11 вечера и просыпаться в 8 утра
     # Во время сна не будет происходить снижение здоровья за бездействие
-    go_to_sleep_time = 24
-    wake_up_time = 7
+    go_to_sleep_time = int(Config.get_value('bot_go_to_sleep_hour'))
+    wake_up_time = int(Config.get_value('bot_wake_up_hour'))
 
     chance_of_answer_on_message = 10
 
@@ -334,7 +368,10 @@ class IdleState(BaseState):
             6. Пересланное сообщение с видео из ленты
         '''
         super().on_message(event)
-
+        if event.message.text.lower().strip(' ') == self.pepe.bot_prefix + 'погладил' \
+        or event.message.text.lower().strip(' ') == self.pepe.bot_prefix + 'статы':
+            return
+        
         now = datetime.now()
         if now.hour >= self.go_to_sleep_time or now.hour <= self.wake_up_time:
             self.go_to_sleep()
@@ -351,7 +388,7 @@ class IdleState(BaseState):
 
     def _comment_activity(self, event):
         '''
-            Комментирует активность с шансом, зависящим от времени последней активности
+            Отвечает на вопрос, либо комментирует активность с шансом, зависящим от времени последней активности
             Чем больше времени никто не писал, тем выше шанс того, что Пепега ответит
         '''
         if event.message.text != '':
@@ -509,9 +546,9 @@ class SleepState(BaseState):
     def __init__(self, pepe) -> None:
         super().__init__(pepe)
         self.current_messages_count = 0
-        self.count_message_to_awake = 10
+        self.count_messages_to_awake = int(Config.get_value('bot_count_messages_to_awake'))
 
-        self.alarm = pepe._start_func_after_time(self.wake_up, 8)
+        self.alarm = pepe._start_func_after_time(self.wake_up, int(Config.get_value('bot_sleep_time_in_hours')))
 
     def on_message(self, event):
         '''
@@ -521,7 +558,7 @@ class SleepState(BaseState):
         super().on_message(event)
         self.current_messages_count += 1
 
-        if self.current_messages_count >= self.count_message_to_awake:
+        if self.current_messages_count >= self.count_messages_to_awake:
             self.wake_up(event)
         
 

@@ -1,7 +1,8 @@
 import json
 import time, vk_api, requests
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
-from pepe_entity import DBWrap
+from pepe_progress import PepeProgress
+from pepe_entity import DBWrap, Pepe, Stat
 from logger import Log, LogType
 
 class vk_wrapper:
@@ -10,7 +11,7 @@ class vk_wrapper:
     russian_conf_id = 0
     bot_admin_id = 365491689
     bot_group_id = '215306309'
-    bot_prefix = '!'
+    command_prefix = '!'
 
     pepe_list = []
 
@@ -55,6 +56,15 @@ class vk_wrapper:
             if pepe.chat_id == chat_id:
                 return pepe
         return None
+    
+    def _create_new_pepe(self, chat_id):
+        pepe = Pepe()
+        pepe.chat_id = chat_id
+        pepe.set_msg_func(self.write_msg)
+        pepe.bot_name = DBWrap.get_random_pepe_name()
+        DBWrap.add_pepe(pepe)
+        self.pepe_list.append(pepe)
+
 
     #TODO: Рассылка описания изменений по беседам, либо команда !хотфикс
     def listen_longpoll(self):
@@ -62,8 +72,6 @@ class vk_wrapper:
             try:
                 for event in self.longpoll.listen():
                     try:
-                        Log.log(LogType.DEBUG, event)
-                        
                         if event.type == VkBotEventType.MESSAGE_NEW:
                             if event.from_chat:
                                 pepe = self._get_pepe_by_chat_id(event.chat_id)
@@ -73,8 +81,12 @@ class vk_wrapper:
                                     pepe.on_message(event)
                                     DBWrap.update_pepe(pepe)
                                     
-                                #if event.message.text.lower().strip(' ') == self.bot_prefix + 'завести':
-                                #    self.write_msg(event.chat_id, 'Пока нет возможности завести Пепе, но такая возможность скоро будет доступна')
+                                if event.message.text.lower().strip(' ') == self.command_prefix + 'завести':
+                                    if pepe is not None:
+                                        self.write_msg(event.chat_id, '+ Незнакомец, что отдал вам ранее в руки яйцо Пепе, уже исчез. Похоже, что его и след простыл +')
+                                    else:
+                                        self._create_new_pepe(event.chat_id)
+                                        self.write_msg(event.chat_id, '+ Странный незнакомец, явно скрывающий свою личность, оставляет увесистое яйцо, покрытое вкрапинками +')
                                 
                             
                     except Exception as e:
