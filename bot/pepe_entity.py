@@ -300,14 +300,20 @@ class PepeSpeech:
 class BaseState:
     def __init__(self, pepe) -> None:
         self.pepe = pepe
+        
+        #
+        self.command_set = {f'{self.pepe.bot_prefix}погладил': self.on_pat,
+             f'{self.pepe.bot_prefix}статы': self.get_bot_info,
+             f'{self.pepe.bot_prefix}помощь' : self.get_command_list,
+             f'{self.pepe.bot_prefix}команды' : self.get_command_list
+             }
 
     def on_message(self, event):
-        if event.message.text.lower().strip(' ') == self.pepe.bot_prefix + 'погладил':
-            self.on_pat(event)
-        elif event.message.text.lower().strip(' ') == self.pepe.bot_prefix + 'статы':
-            self.get_bot_info(event)
-        elif event.message.text.lower().strip(' ') == self.pepe.bot_prefix + 'ап': #дебаг
-            self.pepe.on_level_up(event)
+        # Команды вызываются с помощью словаря. Каждый метод-команда должен принимать в себя event
+        try:
+            self.command_set[event.message.text.lower().strip(' ')](event)
+        except KeyError:
+            pass
     
     def on_pat(self, event):
         pass
@@ -329,6 +335,12 @@ class BaseState:
                 + f'Текущее состояние: {self.pepe.current_state.__str__()}\n',
                 event
                 )
+    
+    def get_command_list(self, event):
+        command_str = ''
+        for key in self.command_set:
+            command_str += f'{key} \n'
+        self.pepe.msg_func(event.chat_id, f'Список доступных взаимодействий: \n {command_str}')
 
     def on_idle(self):
         pass
@@ -346,8 +358,6 @@ class IdleState(BaseState):
     go_to_sleep_time = int(Config.get_value('bot_go_to_sleep_hour'))
     wake_up_time = int(Config.get_value('bot_wake_up_hour'))
 
-    chance_of_answer_on_message = 10
-
     def __init__(self, pepe) -> None:
         super().__init__(pepe)
         self._set_idle_timer()
@@ -356,6 +366,9 @@ class IdleState(BaseState):
         
         now = datetime.now()
         self.last_time_activity = now
+        # Пример добавления новой команды
+        self.command_set[f'{self.pepe.bot_prefix}спи'] = self.go_to_sleep
+        self.command_set[f'{self.pepe.bot_prefix}умри'] = self.die
 
     def on_message(self, event):
         '''
@@ -368,9 +381,9 @@ class IdleState(BaseState):
             6. Пересланное сообщение с видео из ленты
         '''
         super().on_message(event)
-        if event.message.text.lower().strip(' ') == self.pepe.bot_prefix + 'погладил' \
-        or event.message.text.lower().strip(' ') == self.pepe.bot_prefix + 'статы':
-            return
+        for key in self.command_set:
+            if event.message.text.lower().strip(' ') == key:
+                return
         
         now = datetime.now()
         if now.hour >= self.go_to_sleep_time or now.hour <= self.wake_up_time:
@@ -399,8 +412,7 @@ class IdleState(BaseState):
                 else:
                     self.pepe.msg_func(self.pepe.chat_id, PepeSpeech.on_question(self, self.pepe.progress, 'нет ответа'))
             else:
-                self._time_based_chance_default_comment()
-        
+                self._time_based_chance_default_comment() 
     
     def _time_based_chance_default_comment(self):
         now = datetime.now()
@@ -475,7 +487,7 @@ class IdleState(BaseState):
         else:
             self.pepe.msg_func(self.pepe.chat_id, f"{self.pepe.bot_name} обидчиво смотрит в сторону того, кто заставляет его лечь спать", event)
 
-    def die(self) -> None:
+    def die(self, event) -> None:
         ''' 
             Событие-реакция бота на снижение здоровья до нуля.
             Останавливает таймер и отключает бота
@@ -506,6 +518,7 @@ class DeadState(BaseState):
 
     def __init__(self, pepe) -> None:
         super().__init__(pepe)
+        self.command_set[f'{self.pepe.bot_prefix}воскресить'] = self.revive
 
     def on_message(self, event):
         '''
@@ -513,11 +526,11 @@ class DeadState(BaseState):
         '''
         super().on_message(event)
 
-        if event.message.text.lower().strip(' ') == self.pepe.bot_prefix + 'воскресить':
-            self.revive()
+        # if event.message.text.lower().strip(' ') == self.pepe.bot_prefix + 'воскресить':
+        #     self.revive()
 
     def on_pat(self, event):
-        pass
+        self.pepe.msg_func(self.pepe.chat_id, f'+ Бедный Пепе уже покинул этот бренный мир. Поглаживания ему не помогут +')
     
     def get_bot_info(self, event):
         super().get_bot_info(event)
@@ -525,7 +538,7 @@ class DeadState(BaseState):
     def on_idle(self):
         super().on_idle()
 
-    def revive(self) -> None:
+    def revive(self, event) -> None:
         '''
              Возрождение бота. Восстанавливает значение здоровья до максимального,
              но обнуляет весь набранный опыт и уровни
