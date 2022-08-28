@@ -1,6 +1,7 @@
 import json
 import time, vk_api, requests
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
+from vk_api.upload import VkUpload
 from pepe_progress import PepeProgress
 from pepe_entity import DBWrap, Pepe, Stat
 from logger import Log, LogType
@@ -27,11 +28,12 @@ class vk_wrapper:
         #f.close()
         self.vk = vk_api.VkApi(token=self.token)
         self.longpoll = VkBotLongPoll(self.vk, self.bot_group_id, 5)
+        self.upload = VkUpload(self.vk.get_api())
 
         self.pepe_list = DBWrap.get_all_pepe()
 
         for pepe in self.pepe_list:
-            pepe.set_msg_func(self.write_msg)
+            pepe.set_msg_func(self.write_msg, self.send_photo)
 
         Log.log(LogType.OK, "Бот запущен")
 
@@ -49,7 +51,19 @@ class vk_wrapper:
             self.vk.method('messages.send', {'chat_id': chat_id, 'message': message, 'random_id':random_id})
 
         Log.log(LogType.INFO, "Ответ '", message, "' в чат ", chat_id)
-        
+
+    def send_photo(self, chat_id, path_to_img):
+        owner_id, photo_id, access_key = self._upload_photo(path_to_img)
+        attachment = f'photo{owner_id}_{photo_id}_{access_key}'
+        random_id = int(round(time.time() * 1000))
+        self.vk.method('messages.send', {'chat_id': chat_id, 'attachment': attachment, 'random_id':random_id})      
+
+    def _upload_photo(self, path_to_img):
+        result = self.upload.photo_messages(path_to_img)[0]
+        owner_id = result['owner_id']
+        photo_id = result['id']
+        access_key = result['access_key']
+        return owner_id, photo_id, access_key  
 
     def _get_pepe_by_chat_id(self, chat_id):
         for pepe in self.pepe_list:
@@ -60,7 +74,7 @@ class vk_wrapper:
     def _create_new_pepe(self, chat_id):
         pepe = Pepe()
         pepe.chat_id = chat_id
-        pepe.set_msg_func(self.write_msg)
+        pepe.set_msg_func(self.write_msg, self.send_photo)
         pepe.bot_name = DBWrap.get_random_pepe_name()
         DBWrap.add_pepe(pepe)
         self.pepe_list.append(pepe)

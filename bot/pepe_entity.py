@@ -3,6 +3,7 @@ from logger import Log, LogType
 from pepe_progress import PepeProgress
 from pepe_stat import Stat
 from datetime import timedelta, datetime
+from image_creator import ImageCreator
 
 class Config:
 
@@ -33,11 +34,11 @@ class Pepe:
         self.progress = PepeProgress.Egg
         self.current_state = IdleState(self)
     
-    def set_msg_func(self, msg_func):
+    def set_msg_func(self, msg_func, photo_func):
         # FIX_ME: Пересмотреть возможность взаимодействия с vk_api
         self.msg_func = msg_func
+        self.send_photo_func = photo_func
         #self.greeting()
-
     def greeting(self) -> None:
         if self.chat_id != 0:
             self.msg_func(self.chat_id, f"{self.bot_name} неожиданно появляется и приветствует всех!")
@@ -86,23 +87,6 @@ class Pepe:
 
         else:
             self.msg_func(self.chat_id, f'{self.bot_name} стал чуточку лучше!')
-
-    def get_bot_info(self, event) -> None:
-        '''
-            Возвращает информацию о Пепе:
-            * Текущий уровень, количество текущего опыта / количество опыта до следующего уровня
-            * Текущий уровень здоровья / максимальный уровень здоровья
-            * Картинку его статуса (яйцо, маленький Пепе, Пепе-подросток, Пепе-взрослый, Пепе-мудрец)
-            * TODO: Продумать несколько промежуточных статусов
-        '''
-        return self.msg_func(event.chat_id, 
-                  f'Имя: {self.bot_name}\n' \
-                + f'Текущее здоровье: {self.health.current}/{self.health.max} \n' \
-                + f'Текущий уровень: {self.current_level} \n' \
-                + f'Текущий опыт: {self.current_exp}/{self.next_level_exp}\n' \
-                + f'Текущее развитие: {self._get_str_state()}\n'\
-                + f'Текущее состояние: {self.current_state.__str__()}\n'
-                )
 
     def _get_str_state(self):
         if self.progress == PepeProgress.Egg:
@@ -326,15 +310,23 @@ class BaseState:
             * Картинку его статуса (яйцо, маленький Пепе, Пепе-подросток, Пепе-взрослый, Пепе-мудрец)
             * TODO: Продумать несколько промежуточных статусов
         '''
-        return self.pepe.msg_func(event.chat_id, 
-                  f'Имя: {self.pepe.bot_name}\n' \
+        img_name = ImageCreator.create_image_with_text( f'Имя: {self.pepe.bot_name}\n' \
                 + f'Текущее здоровье: {self.pepe.health.current}/{self.pepe.health.max} \n' \
                 + f'Текущий уровень: {self.pepe.current_level} \n' \
                 + f'Текущий опыт: {self.pepe.current_exp}/{self.pepe.next_level_exp}\n' \
                 + f'Текущее развитие: {self.pepe._get_str_state()}\n'\
-                + f'Текущее состояние: {self.pepe.current_state.__str__()}\n',
-                event
-                )
+                + f'Текущее состояние: {self.pepe.current_state.__str__()}\n', 230, 30, 16, img_size=(512, 250))
+        img_name = ImageCreator.add_img_to_image('temp/Capture.PNG', img_name, 10, 30)
+        self.pepe.send_photo_func(event.chat_id, img_name)
+        # self.pepe.msg_func(event.chat_id, 
+        #           f'Имя: {self.pepe.bot_name}\n' \
+        #         + f'Текущее здоровье: {self.pepe.health.current}/{self.pepe.health.max} \n' \
+        #         + f'Текущий уровень: {self.pepe.current_level} \n' \
+        #         + f'Текущий опыт: {self.pepe.current_exp}/{self.pepe.next_level_exp}\n' \
+        #         + f'Текущее развитие: {self.pepe._get_str_state()}\n'\
+        #         + f'Текущее состояние: {self.pepe.current_state.__str__()}\n',
+        #         event
+        #         )
     
     def get_command_list(self, event):
         command_str = ''
