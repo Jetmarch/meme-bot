@@ -510,7 +510,7 @@ class DeadState(BaseState):
 
     def __init__(self, pepe) -> None:
         super().__init__(pepe)
-        self.command_set[f'{self.pepe.bot_prefix}воскресить'] = self.revive
+        #self.command_set[f'{self.pepe.bot_prefix}воскресить'] = self.revive
 
     def on_message(self, event):
         '''
