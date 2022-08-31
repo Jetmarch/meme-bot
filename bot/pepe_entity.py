@@ -466,7 +466,7 @@ class IdleState(BaseState):
             return self.pepe.msg_func(self.pepe.chat_id, f'{self.pepe.bot_name} помирает со скуки')
 
         if self.pepe.health.current <= 0:
-            self.die()
+            self.die(None)
 
     def go_to_sleep(self, event = None) -> None:
         '''
