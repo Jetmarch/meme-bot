@@ -311,12 +311,12 @@ class BaseState:
             * TODO: Продумать несколько промежуточных статусов
         '''
         img_name = ImageCreator.create_image_with_text( f'Имя: {self.pepe.bot_name}\n' \
-                + f'Текущее здоровье: {self.pepe.health.current}/{self.pepe.health.max} \n' \
-                + f'Текущий уровень: {self.pepe.current_level} \n' \
-                + f'Текущий опыт: {self.pepe.current_exp}/{self.pepe.next_level_exp}\n' \
-                + f'Текущее развитие: {self.pepe._get_str_state()}\n'\
-                + f'Текущее состояние: {self.pepe.current_state.__str__()}\n', 230, 30, 16, img_size=(512, 250))
-        img_name = ImageCreator.add_img_to_image('temp/Capture.PNG', img_name, 10, 30)
+                + f'Здоровье: {self.pepe.health.current}/{self.pepe.health.max} \n' \
+                + f'Уровень: {self.pepe.current_level} \n' \
+                + f'Опыт: {self.pepe.current_exp}/{self.pepe.next_level_exp}\n' \
+                + f'Развитие: {self.pepe._get_str_state()}\n'\
+                + f'Состояние: {self.pepe.current_state.__str__()}\n', 500, 100, 42, img_size=(1024, 512))
+        img_name = ImageCreator.add_img_to_image('temp/Capture.PNG', img_name, 80, 100)
         self.pepe.send_photo_func(event.chat_id, img_name)
         # self.pepe.msg_func(event.chat_id, 
         #           f'Имя: {self.pepe.bot_name}\n' \
@@ -510,7 +510,7 @@ class DeadState(BaseState):
 
     def __init__(self, pepe) -> None:
         super().__init__(pepe)
-        self.command_set[f'{self.pepe.bot_prefix}воскресить'] = self.revive
+        #self.command_set[f'{self.pepe.bot_prefix}воскресить'] = self.revive
 
     def on_message(self, event):
         '''

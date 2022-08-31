@@ -2,8 +2,7 @@ import json
 import time, vk_api, requests
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 from vk_api.upload import VkUpload
-from pepe_progress import PepeProgress
-from pepe_entity import DBWrap, Pepe, Stat
+from pepe_entity import DBWrap, Pepe
 from logger import Log, LogType
 
 class vk_wrapper:
@@ -67,7 +66,7 @@ class vk_wrapper:
 
     def _get_pepe_by_chat_id(self, chat_id):
         for pepe in self.pepe_list:
-            if pepe.chat_id == chat_id:
+            if pepe.chat_id == chat_id and str(pepe.current_state) != "Мёртв":
                 return pepe
         return None
     
