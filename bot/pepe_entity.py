@@ -315,8 +315,8 @@ class BaseState:
                 + f'Уровень: {self.pepe.current_level} \n' \
                 + f'Опыт: {self.pepe.current_exp}/{self.pepe.next_level_exp}\n' \
                 + f'Развитие: {self.pepe._get_str_state()}\n'\
-                + f'Состояние: {self.pepe.current_state.__str__()}\n', 500, 100, 42, img_size=(1024, 512))
-        img_name = ImageCreator.add_img_to_image('temp/Capture.PNG', img_name, 80, 100)
+                + f'Состояние: {self.pepe.current_state.__str__()}\n', 700, 150, 64, img_size=(1500, 700), background_color=(255,248,220), font_color=(0, 0, 0))
+        img_name = ImageCreator.add_img_to_image('temp/Capture.PNG', img_name, 100, 100)
         self.pepe.send_photo_func(event.chat_id, img_name)
         # self.pepe.msg_func(event.chat_id, 
         #           f'Имя: {self.pepe.bot_name}\n' \
@@ -359,8 +359,8 @@ class IdleState(BaseState):
         now = datetime.now()
         self.last_time_activity = now
         # Пример добавления новой команды
-        self.command_set[f'{self.pepe.bot_prefix}спи'] = self.go_to_sleep
-        self.command_set[f'{self.pepe.bot_prefix}умри'] = self.die
+        #self.command_set[f'{self.pepe.bot_prefix}спи'] = self.go_to_sleep
+        #self.command_set[f'{self.pepe.bot_prefix}умри'] = self.die
 
     def on_message(self, event):
         '''
