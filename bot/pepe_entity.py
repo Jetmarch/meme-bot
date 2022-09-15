@@ -378,7 +378,7 @@ class IdleState(BaseState):
                 return
         
         now = datetime.now()
-        if now.hour >= self.go_to_sleep_time or now.hour <= self.wake_up_time:
+        if now.hour >= self.go_to_sleep_time or now.hour < self.wake_up_time:
             self.go_to_sleep()
             return
 
@@ -411,7 +411,7 @@ class IdleState(BaseState):
         time_sub = now - self.last_time_activity
 
         if (time_sub.seconds / 60) <= 15:
-            self._send_message_with_random_chance(5)
+            self._send_message_with_random_chance(1)
         
         if (time_sub.seconds / 60) > 15 and (time_sub.seconds / 60) <= 30:
             self._send_message_with_random_chance(20)
@@ -474,6 +474,7 @@ class IdleState(BaseState):
             Если вызывается командой, то есть шанс, что Пепе обидится и не послушается команды
         '''
         if event is None:
+            self._stop_timer()
             self.pepe.msg_func(self.pepe.chat_id, f"{self.pepe.bot_name} укладывается спать")
             self.pepe.current_state = SleepState(self.pepe)
         else:
